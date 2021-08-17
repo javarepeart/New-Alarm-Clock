@@ -1,0 +1,153 @@
+#include <LiquidCrystal.h>
+#include <Servo.h>
+
+int buzzer = 13; // pin for buzzer
+int pos = 0; // position of servo
+const int trigPin = 8;// Pin for Ultra Sonic sensor
+const int echoPin = 10; // Same as above
+
+float duration, distanceIn; // Used to find the duration of pulse
+// and distance of object
+boolean wakeUp = false; // indicates if a person woke up
+int counter = 1; // COunts the number of times it took them to wake up
+
+
+Servo Servo1;
+LiquidCrystal lcd(12, 11, 5, 4, 3, 2); // pins for LCD)
+/*
+    Sets up the nessary pins, for the servo motor, LCD, Sonic
+    Sensor
+*/
+void setup() {
+  pinMode(buzzer, OUTPUT);
+  pinMode(trigPin, OUTPUT);
+  pinMode(echoPin, INPUT);
+  pinMode(7, INPUT);
+  Serial.begin(9600);
+  lcd.begin(16, 2);
+  Servo1.attach(6);
+}
+
+void loop() {
+  /*
+     We first send the radio waves, to get the distance
+  */
+  digitalWrite(trigPin, LOW);
+  delayMicroseconds(2);
+  digitalWrite(trigPin, HIGH);
+  delayMicroseconds(10);
+  digitalWrite(trigPin, LOW);
+  duration = pulseIn(echoPin, HIGH);
+  distanceIn = (duration * .0135) / 2;
+  Serial.print("Distance: ");
+  Serial.println(distanceIn);
+  /*
+     Read the decibles for sound;
+  */
+  Serial.print("Sound: ");
+  Serial.print(analogRead(A0));
+  delay(100);
+
+  if (analogRead(A0) >= 90) {
+    delay(10000);
+    if (distanceIn < 2) {
+
+      while (!wakeUp) {
+        /*
+           Will hit the person 3 times
+        */
+
+        for (int x = 0; x < 3; x++) {
+          tone(buzzer, 150 * counter); // starts a buzzer
+          for (pos = 0; pos <= 180; pos += 2) { // goes from 0 degrees to 180 degrees
+            // in steps of 1 degree
+            Servo1.write(pos);              // tell servo to go to position in variable 'pos'
+            delay(15);                       // waits 15ms for the servo to reach the position
+          }
+          for (pos = 180; pos >= 0; pos -= 2) { // goes from 180 degrees to 0 degrees
+            Servo1.write(pos);              // tell servo to go to position in variable 'pos'
+            delay(15);                       // waits 15ms for the servo to reach the position
+          }
+          noTone(buzzer); // turns off buzzer
+        }
+        /*
+            read the radio waves again to see if they got up
+        */
+        digitalWrite(trigPin, LOW);
+        delayMicroseconds(2);
+        digitalWrite(trigPin, HIGH);
+        delayMicroseconds(10);
+        digitalWrite(trigPin, LOW);
+        duration = pulseIn(echoPin, HIGH);
+        distanceIn = (duration * .0135) / 2;
+        Serial.print("Distance: ");
+        Serial.println(distanceIn);
+        delay(100);
+        /*
+           if they did not get up, the LCD will display
+           a message, if the button is pressed and they
+           did not get up, wakeUp stays false and the while
+           loop starts again, by hitting them 3 times.
+
+        */
+
+        if (distanceIn > 2 && (digitalRead(7) == HIGH)) {
+          wakeUp = true;
+          lcd.setCursor(0, 0);
+          lcd.print("Took you ");
+          lcd.print(counter);
+          if (counter == 1) {
+            lcd.print(" try");
+          }
+          else {
+            lcd.print(" tries");
+          }
+          lcd.setCursor(0, 1);
+          lcd.print("Hit you ");
+          lcd.print(counter * 3);
+          lcd.print(" times");
+          delay(5000);
+        }
+        else {
+          if (digitalRead(7) == HIGH || digitalRead(7) == LOW) {
+            lcd.clear();
+            if (counter == 1) {
+              lcd.setCursor(0, 0);
+              lcd.print("Wake Up!");
+            }
+            else if (counter == 2) {
+              lcd.setCursor(0, 0);
+              lcd.print("Still not up?");
+            }
+            else if ( counter == 3) {
+              lcd.setCursor(0, 0);
+              lcd.print("Gym today?");
+            }
+            else if ( counter == 4) {
+              lcd.setCursor(0, 0);
+              lcd.print("Class maybe?");
+            }
+            else if ( counter == 5) {
+              lcd.setCursor(0, 0);
+              lcd.print("So Lazy");
+            }
+            else {
+              lcd.setCursor(0, 0);
+              lcd.print("GET UP");
+            }
+            counter++;
+          }
+        }
+      }
+    }
+  }
+
+  /*
+     Once while loop is complete, the LCD will say
+     have a nice day
+  */
+  lcd.clear();
+  lcd.setCursor(0, 0);
+  lcd.print("Have a Nice Day!");
+}
+
